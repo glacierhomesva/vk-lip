@@ -1,0 +1,17 @@
+[project]
+name = "vk-lip-backend"
+version = "0.1.0"
+description = "Backend service for vk-lip"
+requires-python = ">=3.11"
+readme = "README.md"
+dependencies = [
+  "fastapi>=0.111.0",
+  "uvicorn[standard]>=0.24.0",
+  "sqlalchemy>=2.0",
+  "pydantic>=2.10",
+  "python-dotenv>=1.0"
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
