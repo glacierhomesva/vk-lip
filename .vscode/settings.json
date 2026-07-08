@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd /workspaces/vk-lip && source \\.venv/bin/activate && python - <<'PY'\nimport pandas as pd\npath = 'data/raw/Real_Estate_\\(Base_Data\\)\\(1\\)\\.csv\\.csv'\n# try reading with default delimiter\ntry:\n    df = pd\\.read_csv\\(path\\)\nexcept Exception as e:\n    raise\nprint\\('COLUMNS:'\\)\nprint\\(list\\(df\\.columns\\)\\)\nprint\\('\\\\nHEAD:'\\)\nprint\\(df\\.head\\(\\)\\.to_string\\(index=False\\)\\)\nPY$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
