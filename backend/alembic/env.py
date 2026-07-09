@@ -29,6 +29,7 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 from app.db.database import Base
 from app.models.parcel import Parcel
+from app.models.assessment import Assessment
 
 target_metadata = Base.metadata
 

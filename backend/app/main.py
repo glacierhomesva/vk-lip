@@ -1,6 +1,7 @@
 import os
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy import text
 from app.db.database import SessionLocal
@@ -10,6 +11,28 @@ app = FastAPI(
     version="0.1.0",
     description="Acquisition Intelligence Platform for Residential Developers"
 )
+
+
+def _cors_origins() -> list[str]:
+    configured = os.getenv("CORS_ORIGINS", "")
+    parsed = [origin.strip() for origin in configured.split(",") if origin.strip()]
+    if parsed:
+        return parsed
+    return ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins(),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+from app.api.parcels import router as parcel_router
+from app.api.opportunities import router as opportunity_router
+
+app.include_router(parcel_router)
+app.include_router(opportunity_router)
 
 
 @app.get("/")
