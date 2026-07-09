@@ -25,33 +25,37 @@ vk-lip is a modular project scaffold for a backend-first application. The reposi
    uvicorn app.main:app --reload --port 8000
    ```
 
-## Production deployment (always-on)
+## Production deployment (low-cost path)
 
-Use the included deployment files to run the app continuously without local terminal sessions.
+Use Render only for the static frontend, host backend API on your preferred provider, and run scheduled data sync in GitHub Actions.
 
-### Backend on Render
+### Frontend on Render Static Site
 
-1. Create a new Web Service in Render and connect this repository.
-2. Render will auto-detect `render.yaml`.
-3. Set environment variables in Render:
-   - `DATABASE_URL` (Supabase/Postgres connection string)
-   - `CORS_ORIGINS` (comma-separated frontend origins, for example `https://vk-lip.vercel.app`)
-4. Deploy. The backend runs with Gunicorn + Uvicorn workers and auto-applies migrations.
+1. In Render, create a Blueprint from this repository.
+2. Render will use `render.yaml` to create `vk-lip-frontend` as a static site.
+3. Set `VITE_API_BASE_URL` to your deployed backend URL (for example `https://your-api.example.com`).
+4. Deploy.
 
-### Scheduled data sync on Render Cron
+### Backend hosting (outside Render)
 
-The repository includes two cron jobs in `render.yaml`:
+Deploy the backend (`backend/`) on any provider that supports Python web services and environment variables.
+Required backend env vars:
 
-1. `vk-lip-sync-nightly` at `0 6 * * *` (UTC)
+- `DATABASE_URL`
+- `CORS_ORIGINS` (comma-separated, include your Render frontend URL)
+
+### Scheduled data sync in GitHub Actions
+
+The workflow `.github/workflows/scheduled-source-sync.yml` runs:
+
+1. Nightly core sync at `0 6 * * *` (UTC)
    - datasets: `parcels owners assessments property_types`
-2. `vk-lip-sync-weekly` at `30 6 * * 0` (UTC)
-   - datasets: `boundary_details`
+2. Weekly boundary sync at `30 6 * * 0` (UTC)
+   - dataset: `boundary_details`
 
-Each sync run uses a PostgreSQL advisory lock (`--job-name ...`) to prevent overlapping executions.
-If a previous run is still active, the new run exits safely.
+Add these repository secrets in GitHub: Settings -> Secrets and variables -> Actions:
 
-Set all source endpoint env vars for the cron services as needed:
-
+- `DATABASE_URL`
 - `SOURCE_PARCELS_URL`
 - `SOURCE_OWNERS_URL`
 - `SOURCE_ASSESSMENTS_URL`
@@ -59,7 +63,9 @@ Set all source endpoint env vars for the cron services as needed:
 - `SOURCE_BOUNDARY_DETAILS_URL`
 - `SOURCE_TIMEOUT_SECONDS` (optional)
 
-Manual run command (same logic as cron):
+Each run uses PostgreSQL advisory locking via `--job-name` to avoid overlapping syncs.
+
+Manual run command (same logic as scheduler):
 
 ```bash
 cd backend
@@ -70,17 +76,9 @@ python -m app.imports.sync_from_source \
   --job-name nightly-core
 ```
 
-### Frontend on Vercel
-
-1. Import the repository in Vercel.
-2. Set project root to `frontend`.
-3. Set environment variable:
-   - `VITE_API_BASE_URL` (for example `https://vk-lip-api.onrender.com`)
-4. Deploy. `vercel.json` includes SPA route fallback so deep links work.
-
 ### Result
 
-After both deployments complete, your frontend and backend are always on and available over HTTPS.
+After deployment and secret setup, your frontend is hosted on Render, backend stays always-on at your chosen provider, and data refresh is automated by GitHub Actions.
 
 ## Notes
 

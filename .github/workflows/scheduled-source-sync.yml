@@ -1,0 +1,90 @@
+name: Scheduled Source Sync
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+    - cron: "30 6 * * 0"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Which sync job to run"
+        required: true
+        default: nightly-core
+        type: choice
+        options:
+          - nightly-core
+          - weekly-boundary
+
+jobs:
+  nightly-core:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'nightly-core' || github.event_name == 'schedule' && github.event.schedule == '0 6 * * *' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: scheduled-sync-nightly-core
+      cancel-in-progress: false
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        working-directory: backend
+
+      - name: Run nightly core sync
+        run: |
+          python -m app.imports.sync_from_source \
+            --datasets parcels owners assessments property_types \
+            --chunk-size 1000 \
+            --progress-every 2000 \
+            --job-name nightly-core
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SOURCE_PARCELS_URL: ${{ secrets.SOURCE_PARCELS_URL }}
+          SOURCE_OWNERS_URL: ${{ secrets.SOURCE_OWNERS_URL }}
+          SOURCE_ASSESSMENTS_URL: ${{ secrets.SOURCE_ASSESSMENTS_URL }}
+          SOURCE_PROPERTY_TYPES_URL: ${{ secrets.SOURCE_PROPERTY_TYPES_URL }}
+          SOURCE_TIMEOUT_SECONDS: ${{ secrets.SOURCE_TIMEOUT_SECONDS }}
+
+  weekly-boundary:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'weekly-boundary' || github.event_name == 'schedule' && github.event.schedule == '30 6 * * 0' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: scheduled-sync-weekly-boundary
+      cancel-in-progress: false
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        working-directory: backend
+
+      - name: Run weekly boundary sync
+        run: |
+          python -m app.imports.sync_from_source \
+            --datasets boundary_details \
+            --chunk-size 1000 \
+            --progress-every 1000 \
+            --job-name weekly-boundary
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SOURCE_BOUNDARY_DETAILS_URL: ${{ secrets.SOURCE_BOUNDARY_DETAILS_URL }}
+          SOURCE_TIMEOUT_SECONDS: ${{ secrets.SOURCE_TIMEOUT_SECONDS }}
