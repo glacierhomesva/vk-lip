@@ -30,6 +30,11 @@ const sections: DashboardSection[] = [
     description: 'Higher-scoring parcels with a suggested heuristic offer range based on assessment, tenure, and probability.',
     params: new URLSearchParams({ years_owned_min: '10', sort_by: 'suggested_offer', limit: '10' }),
   },
+  {
+    title: 'Tax Delinquency Priority List',
+    description: 'Tax-delinquent parcels sorted by highest known lien amount for fast owner outreach triage.',
+    params: new URLSearchParams({ tax_delinquent_only: 'true', sort_by: 'tax_lien_amount', limit: '10' }),
+  },
 ]
 
 function Dashboard() {

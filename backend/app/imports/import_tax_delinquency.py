@@ -39,6 +39,16 @@ def import_tax_delinquency_from_csv(path: str, db: Session) -> tuple[int, int]:
             f"Tax delinquency source not found at {file_path}. Add a CSV with parcel_number and optional lien_amount columns."
         )
 
+    # Treat CSV input as a full snapshot and clear stale delinquency flags first.
+    db.query(Parcel).filter(Parcel.tax_delinquent.is_(True)).update(
+        {
+            Parcel.tax_delinquent: False,
+            Parcel.tax_lien_amount: None,
+        },
+        synchronize_session=False,
+    )
+    db.commit()
+
     with file_path.open(newline="", encoding="utf-8") as stream:
         reader = csv.DictReader(stream)
         for row in reader:

@@ -2,7 +2,6 @@ import re
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
@@ -43,6 +42,10 @@ def opportunities(
     min_estimated_units: int | None = None,
     sia_only: bool = False,
     adjacent_developer_owned_only: bool = False,
+    tax_delinquent_only: bool = False,
+    min_tax_lien_amount: float | None = None,
+    min_suggested_offer: float | None = None,
+    max_suggested_offer: float | None = None,
     min_acres: float = 0.5,
     absentee_only: bool = False,
     sort_by: str = "vk_score",
@@ -77,6 +80,12 @@ def opportunities(
 
         if adjacent_developer_owned_only:
             query = query.filter(Parcel.adjacent_developer_owned.is_(True))
+
+    if tax_delinquent_only:
+        query = query.filter(Parcel.tax_delinquent.is_(True))
+
+    if min_tax_lien_amount is not None:
+        query = query.filter(Parcel.tax_lien_amount >= min_tax_lien_amount)
 
     parcels = query.limit(limit).all()
 
@@ -124,6 +133,11 @@ def opportunities(
             estimated_units,
         )
 
+        if min_suggested_offer is not None and (suggested_offer is None or suggested_offer < min_suggested_offer):
+            continue
+        if max_suggested_offer is not None and (suggested_offer is None or suggested_offer > max_suggested_offer):
+            continue
+
         vk_score = calculate_vk_score(p)
 
         results.append({
@@ -157,6 +171,7 @@ def opportunities(
         "seller_probability": lambda item: item["seller_probability"] or 0,
         "estimated_units": lambda item: item["estimated_units"] or 0,
         "suggested_offer": lambda item: item["suggested_offer"] or 0,
+        "tax_lien_amount": lambda item: item["tax_lien_amount"] or 0,
     }.get(sort_by, lambda item: item["vk_score"])
 
     results.sort(key=sort_key, reverse=True)

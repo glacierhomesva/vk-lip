@@ -417,6 +417,17 @@ class SourceSyncService:
     def sync_tax_delinquency(self, records: Iterable[Mapping[str, Any]]) -> DatasetSyncResult:
         result = DatasetSyncResult()
         next_log = self.progress_every
+
+        # Treat delinquency imports as a full snapshot: clear previous flags first.
+        self.db.query(Parcel).filter(Parcel.tax_delinquent.is_(True)).update(
+            {
+                Parcel.tax_delinquent: False,
+                Parcel.tax_lien_amount: None,
+            },
+            synchronize_session=False,
+        )
+        self.db.commit()
+
         for chunk in self._chunked(records, self.chunk_size):
             parcel_numbers = {
                 parcel_number

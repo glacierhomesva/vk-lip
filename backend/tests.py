@@ -1,8 +1,27 @@
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
+from app.db.database import SessionLocal
 from app.main import app
+from app.models.parcel import Parcel
 
 client = TestClient(app)
+
+
+def set_parcel_delinquency(
+    db: Session,
+    parcel_number: str,
+    tax_delinquent: bool,
+    lien_amount: float | None,
+) -> tuple[bool | None, object | None]:
+    parcel = db.query(Parcel).filter(Parcel.parcel_number == parcel_number).first()
+    if parcel is None:
+        raise AssertionError(f"Missing fixture parcel: {parcel_number}")
+    original = (parcel.tax_delinquent, parcel.tax_lien_amount)
+    parcel.tax_delinquent = tax_delinquent
+    parcel.tax_lien_amount = lien_amount
+    db.commit()
+    return original
 
 
 def test_get_parcel_with_latest_assessment():
@@ -113,3 +132,67 @@ def test_opportunities_endpoint_sorted_by_vk_score():
     for item in data:
         assert "vk_score" in item
         assert isinstance(item["vk_score"], int)
+
+
+def test_opportunities_tax_delinquent_only_filter():
+    db = SessionLocal()
+    parcel_number = "010007000"
+    original_state = set_parcel_delinquency(db, parcel_number, True, 4200.0)
+
+    try:
+        response = client.get(f"/opportunities?parcel_number={parcel_number}&tax_delinquent_only=true")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["parcel_number"] == parcel_number
+        assert data[0]["tax_delinquent"] is True
+    finally:
+        set_parcel_delinquency(db, parcel_number, original_state[0] or False, original_state[1])
+        db.close()
+
+
+def test_opportunities_min_tax_lien_amount_filter():
+    db = SessionLocal()
+    parcel_number = "010007000"
+    original_state = set_parcel_delinquency(db, parcel_number, True, 1500.0)
+
+    try:
+        response = client.get(f"/opportunities?parcel_number={parcel_number}&min_tax_lien_amount=2000")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 0
+
+        response = client.get(f"/opportunities?parcel_number={parcel_number}&min_tax_lien_amount=1000")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["parcel_number"] == parcel_number
+    finally:
+        set_parcel_delinquency(db, parcel_number, original_state[0] or False, original_state[1])
+        db.close()
+
+
+def test_opportunities_suggested_offer_range_filter():
+    parcel_number = "010007000"
+
+    response = client.get(f"/opportunities?parcel_number={parcel_number}")
+    assert response.status_code == 200
+    base_data = response.json()
+    assert len(base_data) == 1
+    suggested_offer = base_data[0]["suggested_offer"]
+    assert suggested_offer is not None
+
+    response = client.get(
+        f"/opportunities?parcel_number={parcel_number}&min_suggested_offer={suggested_offer - 1}&max_suggested_offer={suggested_offer + 1}",
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["parcel_number"] == parcel_number
+
+    response = client.get(
+        f"/opportunities?parcel_number={parcel_number}&min_suggested_offer={suggested_offer + 1000}",
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 0
