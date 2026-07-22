@@ -57,6 +57,10 @@ function ParcelDetail() {
     )
   }
 
+  const remarks = [parcel.latest_assessment?.remarks, parcel.delinquency_remarks]
+    .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index)
+    .join(' | ')
+
   return (
     <main>
       <h1>Parcel Detail</h1>
@@ -135,22 +139,26 @@ function ParcelDetail() {
         <dd>{parcel.owner_zip_code || '-'}</dd>
       </dl>
 
-      {parcel.latest_assessment ? (
+      {parcel.latest_assessment || remarks ? (
         <section>
           <h2>Latest Assessment</h2>
           <dl>
-            <dt>Tax Year</dt>
-            <dd>{parcel.latest_assessment.tax_year}</dd>
-            <dt>Land Value</dt>
-            <dd>{parcel.latest_assessment.land_value ?? '-'}</dd>
-            <dt>Improvement Value</dt>
-            <dd>{parcel.latest_assessment.improvement_value ?? '-'}</dd>
-            <dt>Market Value</dt>
-            <dd>{parcel.latest_assessment.market_value ?? '-'}</dd>
-            <dt>Assessed Value</dt>
-            <dd>{parcel.latest_assessment.assessed_value ?? '-'}</dd>
+            {parcel.latest_assessment ? (
+              <>
+                <dt>Tax Year</dt>
+                <dd>{parcel.latest_assessment.tax_year}</dd>
+                <dt>Land Value</dt>
+                <dd>{parcel.latest_assessment.land_value ?? '-'}</dd>
+                <dt>Improvement Value</dt>
+                <dd>{parcel.latest_assessment.improvement_value ?? '-'}</dd>
+                <dt>Market Value</dt>
+                <dd>{parcel.latest_assessment.market_value ?? '-'}</dd>
+                <dt>Assessed Value</dt>
+                <dd>{parcel.latest_assessment.assessed_value ?? '-'}</dd>
+              </>
+            ) : null}
             <dt>Remarks</dt>
-            <dd>{parcel.latest_assessment.remarks || '-'}</dd>
+            <dd>{remarks || '-'}</dd>
           </dl>
         </section>
       ) : (

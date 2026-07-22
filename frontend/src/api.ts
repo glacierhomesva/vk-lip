@@ -25,6 +25,7 @@ export interface ParcelResponse {
   adjacent_developer_owned?: boolean | null
   tax_delinquent?: boolean | null
   tax_lien_amount?: number | null
+  delinquency_remarks?: string | null
   owner_name?: string
   owner_address?: string
   owner_city_state?: string

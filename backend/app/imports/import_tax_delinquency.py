@@ -172,6 +172,20 @@ def _account_number_from_row(row: dict[str, object]) -> Optional[str]:
     )
 
 
+def _delinquency_remarks_from_row(row: dict[str, object]) -> Optional[str]:
+    return empty_or_none(
+        _get_value(
+            row,
+            "Notes",
+            "Note",
+            "Remarks",
+            "Remark",
+            "Comments",
+            "Comment",
+        ),
+    )
+
+
 def _read_account_totals_from_detailed_csv(path: Path) -> dict[str, float]:
     account_totals: dict[str, float] = {}
     current_account: str | None = None
@@ -207,6 +221,7 @@ def _chunked(values: list[str], size: int) -> Iterable[list[str]]:
 
 def import_tax_delinquency_from_files(paths: list[str], db: Session, batch_size: int = 1000) -> tuple[int, int]:
     records: dict[str, Optional[float]] = {}
+    parcel_remarks: dict[str, str] = {}
     account_to_parcel: dict[str, str] = {}
     account_to_total: dict[str, float] = {}
     skipped = 0
@@ -236,8 +251,11 @@ def import_tax_delinquency_from_files(paths: list[str], db: Session, batch_size:
                 continue
 
             lien_amount = _lien_amount_from_row(row)
+            remarks = _delinquency_remarks_from_row(row)
             if lien_amount is not None or parcel_number not in records:
                 records[parcel_number] = lien_amount
+            if remarks is not None:
+                parcel_remarks[parcel_number] = remarks
 
     for account_number, total_amount in account_to_total.items():
         parcel_number = account_to_parcel.get(account_number)
@@ -251,6 +269,7 @@ def import_tax_delinquency_from_files(paths: list[str], db: Session, batch_size:
         {
             Parcel.tax_delinquent: False,
             Parcel.tax_lien_amount: None,
+            Parcel.tax_delinquency_remarks: None,
         },
         synchronize_session=False,
     )
@@ -273,6 +292,7 @@ def import_tax_delinquency_from_files(paths: list[str], db: Session, batch_size:
 
             parcel.tax_delinquent = True
             parcel.tax_lien_amount = records[parcel_number]
+            parcel.tax_delinquency_remarks = parcel_remarks.get(parcel_number)
             updated += 1
 
         db.commit()

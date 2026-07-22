@@ -9,6 +9,7 @@ class AssessmentResponse(BaseModel):
     land_value: float | None = None
     improvement_value: float | None = None
     total_value: float | None = None
+    remarks: str | None = None
 
     model_config = {
         "from_attributes": True,
@@ -31,6 +32,7 @@ class ParcelResponse(BaseModel):
     adjacent_developer_owned: bool | None = None
     tax_delinquent: bool | None = None
     tax_lien_amount: float | None = None
+    delinquency_remarks: str | None = None
     owner_name: str | None = None
     owner_address: str | None = None
     owner_city_state: str | None = None

@@ -4,6 +4,7 @@ from sqlalchemy import (
     String,
     Float,
     Numeric,
+    Text,
     DateTime,
     Boolean,
     func,
@@ -49,6 +50,7 @@ class Parcel(Base):
     adjacent_developer_owned = Column(Boolean, nullable=True, default=False)
     tax_delinquent = Column(Boolean, nullable=True, default=False)
     tax_lien_amount = Column(Numeric(12, 2), nullable=True)
+    tax_delinquency_remarks = Column(Text, nullable=True)
 
     # Assessment
     land_value = Column(Numeric(12, 2))

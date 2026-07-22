@@ -19,6 +19,13 @@ def as_float(value: object | None) -> float | None:
     return float(value) if value is not None else None
 
 
+def combine_remarks(*remarks: str | None) -> str | None:
+    parts = [remark.strip() for remark in remarks if remark and remark.strip()]
+    if not parts:
+        return None
+    return " | ".join(parts)
+
+
 def parcel_to_dict(parcel: Parcel) -> Dict[str, Any]:
     return {
         "id": parcel.id,
@@ -136,6 +143,7 @@ def get_parcel(parcel_number: str, db: Session = Depends(get_db)) -> ParcelRespo
         owner_zip_code=parcel.owner_zip_code,
         tax_delinquent=parcel.tax_delinquent,
         tax_lien_amount=float(parcel.tax_lien_amount) if parcel.tax_lien_amount is not None else None,
+        delinquency_remarks=parcel.tax_delinquency_remarks,
         estimated_units=estimated_units,
         seller_probability=seller_probability,
         offer_low=offer_low,
@@ -146,5 +154,6 @@ def get_parcel(parcel_number: str, db: Session = Depends(get_db)) -> ParcelRespo
             land_value=as_float(assessment.land_value),
             improvement_value=as_float(assessment.improvement_value),
             total_value=as_float(assessment.total_value),
+            remarks=combine_remarks(parcel.tax_delinquency_remarks),
         ) if assessment else None,
     )

@@ -423,6 +423,7 @@ class SourceSyncService:
             {
                 Parcel.tax_delinquent: False,
                 Parcel.tax_lien_amount: None,
+                Parcel.tax_delinquency_remarks: None,
             },
             synchronize_session=False,
         )
@@ -455,6 +456,14 @@ class SourceSyncService:
 
                 parcel.tax_delinquent = True
                 parcel.tax_lien_amount = _float(record.get("lien_amount") or record.get("LienAmount") or record.get("amount"))
+                parcel.tax_delinquency_remarks = _clean(
+                    record.get("Notes")
+                    or record.get("Note")
+                    or record.get("remarks")
+                    or record.get("Remarks")
+                    or record.get("comment")
+                    or record.get("Comment"),
+                )
                 result.updated += 1
 
             self.db.commit()
