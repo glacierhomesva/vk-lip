@@ -2,10 +2,33 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
+from app.imports.import_tax_delinquency import _parcel_number_from_row, _read_rows
 from app.main import app
 from app.models.parcel import Parcel
 
 client = TestClient(app)
+
+
+def test_tax_delinquency_reader_skips_report_preamble(tmp_path):
+    report = tmp_path / "report.csv"
+    report.write_text(
+        "CITY OF CHARLOTTESVILLE,,,,\n"
+        ",,,,\n"
+        "Account ,Current Owner Name,Property Address,,,PIN #,Status,Notes,,\n"
+        '44624,"ZELLER, TROY WAYNE",2323 HIGHLAND AVE,,,210115100,A,$1000/mo,,\n',
+        encoding="utf-8",
+    )
+
+    rows = list(_read_rows(str(report)))
+
+    assert len(rows) == 1
+    assert _parcel_number_from_row(rows[0]) == "210115100"
+
+
+def test_tax_delinquency_reader_supports_pin_header_alias():
+    row = {"PIN #": "210115100"}
+
+    assert _parcel_number_from_row(row) == "210115100"
 
 
 def set_parcel_delinquency(
