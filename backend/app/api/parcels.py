@@ -15,6 +15,10 @@ from app.services.zoning import estimate_units
 router = APIRouter(prefix="/parcels", tags=["parcels"])
 
 
+def as_float(value: object | None) -> float | None:
+    return float(value) if value is not None else None
+
+
 def parcel_to_dict(parcel: Parcel) -> Dict[str, Any]:
     return {
         "id": parcel.id,
@@ -139,8 +143,8 @@ def get_parcel(parcel_number: str, db: Session = Depends(get_db)) -> ParcelRespo
         suggested_offer=suggested_offer,
         latest_assessment=AssessmentResponse(
             tax_year=assessment.tax_year,
-            land_value=float(assessment.land_value),
-            improvement_value=float(assessment.improvement_value),
-            total_value=float(assessment.total_value),
+            land_value=as_float(assessment.land_value),
+            improvement_value=as_float(assessment.improvement_value),
+            total_value=as_float(assessment.total_value),
         ) if assessment else None,
     )

@@ -6,9 +6,9 @@ from pydantic import BaseModel
 
 class AssessmentResponse(BaseModel):
     tax_year: int
-    land_value: float
-    improvement_value: float
-    total_value: float
+    land_value: float | None = None
+    improvement_value: float | None = None
+    total_value: float | None = None
 
     model_config = {
         "from_attributes": True,

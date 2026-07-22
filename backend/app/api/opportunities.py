@@ -31,6 +31,10 @@ def normalize_address(value: str | None) -> str:
     return " ".join(normalized.split())
 
 
+def as_float(value: object | None) -> float | None:
+    return float(value) if value is not None else None
+
+
 @router.get("", response_model=list[OpportunityResponse])
 @router.get("/", response_model=list[OpportunityResponse])
 def opportunities(
@@ -46,7 +50,7 @@ def opportunities(
     min_tax_lien_amount: float | None = None,
     min_suggested_offer: float | None = None,
     max_suggested_offer: float | None = None,
-    min_acres: float = 0.5,
+    min_acres: float | None = None,
     absentee_only: bool = False,
     sort_by: str = "vk_score",
     limit: int = 100,
@@ -69,7 +73,7 @@ def opportunities(
         if min_sqft is not None and min_sqft > 0:
             min_acres_needed = min_sqft / 43560.0
             query = query.filter(Parcel.lot_size >= min_acres_needed)
-        else:
+        elif min_acres is not None and min_acres > 0:
             query = query.filter(Parcel.lot_size >= min_acres)
 
         if years_owned_min is not None:
@@ -109,9 +113,9 @@ def opportunities(
         latest_assessment = (
             AssessmentResponse(
                 tax_year=assessment.tax_year,
-                land_value=float(assessment.land_value),
-                improvement_value=float(assessment.improvement_value),
-                total_value=float(assessment.total_value),
+                land_value=as_float(assessment.land_value),
+                improvement_value=as_float(assessment.improvement_value),
+                total_value=as_float(assessment.total_value),
             ) if assessment else None
         )
 
