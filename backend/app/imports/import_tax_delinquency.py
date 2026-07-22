@@ -1,5 +1,6 @@
 import argparse
 import csv
+import re
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Optional
@@ -155,8 +156,48 @@ def _lien_amount_from_row(row: dict[str, object]) -> Optional[float]:
             "amount",
             "tax_lien_amount",
             "TaxLienAmount",
+            "Total",
         ),
     )
+
+
+def _account_number_from_row(row: dict[str, object]) -> Optional[str]:
+    return empty_or_none(
+        _get_value(
+            row,
+            "Account",
+            "Account Number",
+            "account_number",
+        ),
+    )
+
+
+def _read_account_totals_from_detailed_csv(path: Path) -> dict[str, float]:
+    account_totals: dict[str, float] = {}
+    current_account: str | None = None
+
+    with path.open(newline="", encoding="utf-8-sig") as stream:
+        reader = csv.reader(stream)
+
+        for row in reader:
+            first_cell = row[0].strip() if row else ""
+            if first_cell:
+                match = re.search(r"Account:\s*(\d+)", first_cell)
+                if match:
+                    current_account = match.group(1)
+                    continue
+
+            if current_account is None or len(row) <= 38:
+                continue
+
+            total_amount = float_or_none(row[38])
+            if total_amount is None:
+                continue
+
+            account_totals[current_account] = total_amount
+            current_account = None
+
+    return account_totals
 
 
 def _chunked(values: list[str], size: int) -> Iterable[list[str]]:
@@ -166,6 +207,8 @@ def _chunked(values: list[str], size: int) -> Iterable[list[str]]:
 
 def import_tax_delinquency_from_files(paths: list[str], db: Session, batch_size: int = 1000) -> tuple[int, int]:
     records: dict[str, Optional[float]] = {}
+    account_to_parcel: dict[str, str] = {}
+    account_to_total: dict[str, float] = {}
     skipped = 0
 
     if not paths:
@@ -178,13 +221,30 @@ def import_tax_delinquency_from_files(paths: list[str], db: Session, batch_size:
                 f"Tax delinquency source not found at {file_path}. Add a CSV or Excel file with parcel_number and optional lien_amount columns.",
             )
 
+        if file_path.suffix.lower() == ".csv":
+            account_to_total.update(_read_account_totals_from_detailed_csv(file_path))
+
         for row in _read_rows(str(file_path)):
             parcel_number = _parcel_number_from_row(row)
+            account_number = _account_number_from_row(row)
+
+            if account_number and parcel_number:
+                account_to_parcel[account_number] = parcel_number
+
             if parcel_number is None:
                 skipped += 1
                 continue
 
-            records[parcel_number] = _lien_amount_from_row(row)
+            lien_amount = _lien_amount_from_row(row)
+            if lien_amount is not None or parcel_number not in records:
+                records[parcel_number] = lien_amount
+
+    for account_number, total_amount in account_to_total.items():
+        parcel_number = account_to_parcel.get(account_number)
+        if parcel_number is None:
+            continue
+
+        records[parcel_number] = total_amount
 
     # Treat CSV input as a full snapshot and clear stale delinquency flags first.
     db.query(Parcel).filter(Parcel.tax_delinquent.is_(True)).update(
